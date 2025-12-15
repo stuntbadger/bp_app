@@ -97,7 +97,29 @@ else:
         mask &= (df["datetime"].dt.hour >= 12)
     view = df.loc[mask].copy().sort_values("datetime")
 
-    st.dataframe(view, use_container_width=True)
+    #st.dataframe(view, use_container_width=True)
+    edited_view = st.data_editor(
+        view,
+        use_container_width=True,
+        num_rows="dynamic",
+        disabled=["datetime"], 
+        key="editor"
+    )
+    if st.button("Save edits"):
+       # Keep only rows still present after editing
+       df = df.merge(
+           edited_view,
+           on=["datetime", "systolic", "diastolic", "pulse", "notes"],
+           how="right"
+    )
+
+    # Ensure correct dtypes
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    for col in ["systolic", "diastolic", "pulse"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    save_data(df)
+    st.success("Edits & deletions saved")
 
     # ---------- Derived metrics ----------
     daily = view.copy()
@@ -197,29 +219,35 @@ else:
     if report_btn:
         view = df.sort_values("datetime").copy()
         # Ensure numeric types for summary stats
-        for col in ["systolic", "diastolic"]:
+        for col in ["systolic", "diastolic", "pulse"]:
             view[col] = pd.to_numeric(view[col], errors="coerce")
 
         sys_mean = view["systolic"].mean()
         dia_mean = view["diastolic"].mean()
+        pulse_mean = view["pulse"].mean()
+
         sys_max = view["systolic"].max()
         dia_max = view["diastolic"].max()
+        pulse_max = view["pulse"].max()
 
         # Matplotlib A4 portrait figure
         fig, ax = plt.subplots(2, 1, figsize=(8.27, 11.69))
         ax[0].plot(view["datetime"], view["systolic"], label="Systolic", color="#1f77b4")
         ax[0].plot(view["datetime"], view["diastolic"], label="Diastolic", color="#ff7f0e")
+        ax[0].plot(view["datetime"], view["pulse"], label="Pulse", color="#2ca02c")
         ax[0].axhline(target_sys_max, ls="--", color="#1f77b4")
         ax[0].axhline(target_dia_max, ls="--", color="#ff7f0e")
         ax[0].set_title("Blood Pressure Over Time")
-        ax[0].set_ylabel("mmHg")
+        ax[0].set_ylabel("mmHg / bpm")
         ax[0].legend()
 
         ax[1].axis("off")
         lines = [
             "Summary:",
-            f"- Average: {sys_mean:.1f}/{dia_mean:.1f} mmHg",
-            f"- Highest: {sys_max:.0f}/{dia_max:.0f} mmHg",
+            f"- Average BP: {sys_mean:.1f}/{dia_mean:.1f} mmHg",
+            f"- Average Pulse: {pulse_mean:.1f} bpm",
+            f"- Highest BP: {sys_max:.0f}/{dia_max:.0f} mmHg",
+            f"- Highest Pulse: {pulse_max:.0f} bpm",
             f"- Readings: {len(view)}",
         ]
         if include_notes:

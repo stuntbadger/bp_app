@@ -6,8 +6,13 @@ WORKDIR /app
 
 # Install system dependencies (for matplotlib/plotly image export)
 RUN apt-get update && apt-get install -y \
+    wget gnupg \
     build-essential \
     libgl1 \
+    wget gnupg \
+    && wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get install -y ./google-chrome-stable_current_amd64.deb \
+    && rm google-chrome-stable_current_amd64.deb \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
@@ -24,4 +29,3 @@ EXPOSE 8501
 
 # Run the app
 ENTRYPOINT ["streamlit", "run", "bp_app.py", "--server.port=8501", "--server.headless=true", "--server.enableCORS=false"]
-
